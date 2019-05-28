@@ -1,4 +1,3 @@
-
 -module(emqx_plugin_2db).
 
 -include_lib("emqx/include/emqx.hrl").
@@ -110,16 +109,16 @@ try_get_ts(Message,MessageMaps) ->
                 undefined ->lists:flatten(io_lib:format("~p", [TimeBin]))
             end;     
         false-> 
-            Timestamp1 = lists:flatten(io_lib:format("~p", [element(1, element(13, Message))])),
-            Timestamp2 = lists:flatten(io_lib:format("~p", [element(2, element(13, Message))])),
-            Timestamp3 = lists:flatten(io_lib:format("~p", [element(3, element(13, Message))])),
+            Timestamp1 = lists:flatten(io_lib:format("~p", [element(1, element(9, Message))])),
+            Timestamp2 = lists:flatten(io_lib:format("~p", [element(2, element(9, Message))])),
+            Timestamp3 = lists:flatten(io_lib:format("~p", [element(3, element(9, Message))])),
             Timetemp = string:concat(Timestamp1,Timestamp2),
             TimestampStr = string:concat(Timetemp,Timestamp3),
             TimestampStr;
         undefined -> 
-            Timestamp1 = lists:flatten(io_lib:format("~p", [element(1, element(13, Message))])),
-            Timestamp2 = lists:flatten(io_lib:format("~p", [element(2, element(13, Message))])),
-            Timestamp3 = lists:flatten(io_lib:format("~p", [element(3, element(13, Message))])),
+            Timestamp1 = lists:flatten(io_lib:format("~p", [element(1, element(9, Message))])),
+            Timestamp2 = lists:flatten(io_lib:format("~p", [element(2, element(9, Message))])),
+            Timestamp3 = lists:flatten(io_lib:format("~p", [element(3, element(9, Message))])),
             Timetemp = string:concat(Timestamp1,Timestamp2),
             TimestampStr = string:concat(Timetemp,Timestamp3),
             TimestampStr   
@@ -159,34 +158,43 @@ load(Odbc,Topics,ReqkeysList,Que1s,Que2s) ->
 
 
 
-on_message_publish(Message = #mqtt_message{topic = <<"$SYS/", _/binary>>}, _Odbc, _Topics, _ReqkeysList, _Que1s, _Que2s) ->
+on_message_publish(Message = #message{topic = <<"$SYS/", _/binary>>}, _Odbc, _Topics, _ReqkeysList, _Que1s, _Que2s) ->
     {ok, Message};
 
 on_message_publish(Message, Odbc, Topics,ReqkeysList,Que1s,Que2s) ->
     % io:format("publish ~s~n", [emqx_message:format(Message)]),
     
-    TopicBin = element(5, Message),
-    
-    ReqTopicsBinList = [<<"sgcd/solvent-live">>],
+    TopicBin = element(7, Message),
     
     case lists:keyfind(TopicBin, 1,Topics)  of 
         {Topic, Index} ->
             TopicStr = binary_to_list(TopicBin),
-            MessageBin = element(12, Message),
+            MessageBin = element(8, Message),
     
             case jsx:is_json(MessageBin)  of  
                 true -> 
                     MessageMaps = jsx:decode(MessageBin, [return_maps]),
                     case lists:any(fun (Elem) -> lists:member(Elem, lists:nth(Index,ReqkeysList)) end, maps:keys(MessageMaps) ) of 
                         true->
-                            try
-                                UsernameBin = element(2, element(4, Message)),
-                                ClientBin = element(1,element(4, Message)),
+                            % try
+                                UsernameBin = maps:get(username, element(6, Message)),
+                                % io:format("UsernameBin.....~p~n ", [UsernameBin]),
+
+                                ClientBin = element(4, Message),
+                                % io:format("ClientBin.....~p~n ", [ClientBin]),
+
                                 ClientBinRe = re:replace(ClientBin, "\\s+", "", [global,{return,binary}]),
+                                % io:format("ClientBinRe.....~p~n ", [ClientBinRe]),
+
                                 NamePid = binary_to_atom(<<"pid_",  ClientBinRe/binary>>, unicode),
+                                % io:format("NamePid.....~p~n ", [NamePid]),
+
                                 ClientStr = binary_to_list(ClientBin),
+                                % io:format("ClientStr.....~p~n ", [ClientStr]),
 
                                 UsernameStr = binary_to_list(UsernameBin),
+                                % io:format("UsernameStr.....~p~n ", [UsernameStr]),
+
                                 Que1 = lists:nth(Index,Que1s),
                                 TQue2 =  lists:nth(Index,Que2s),
 
@@ -194,15 +202,16 @@ on_message_publish(Message, Odbc, Topics,ReqkeysList,Que1s,Que2s) ->
                                 {ok, Parsed} = erl_parse:parse_exprs(Tokens), 
                                 Bindings = [{'Message', Message}, {'MessageMaps', MessageMaps}],    
                                 {value, Que2, _} = erl_eval:exprs(Parsed, Bindings), 
+                            
                                 % io:format("Que1.....~p~n ", [Que1]),
                                 % io:format("Que2.....~p~n ", [Que2]),
 
                                 write(Odbc,NamePid,Que1,Que2),
-                                {ok, Message}
-                            catch 
-                                error:X -> 
-                                    io:fwrite(X)
-                            end; 
+                                {ok, Message};
+                            % catch 
+                            %     error:X -> 
+                            %         io:fwrite(X)
+                            % end; 
                         false->
                             {error, "no required Key in JSON"}
                     end;

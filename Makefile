@@ -1,17 +1,20 @@
 PROJECT = emqx_plugin_2db
-PROJECT_DESCRIPTION = EMQ X Plugin 2 DB
-PROJECT_VERSION = 1.11
+PROJECT_DESCRIPTION = EMQ X Plugin 2db
+PROJECT_VERSION = 1.00
+
 
 BUILD_DEPS = emqx cuttlefish
-dep_emqx = git https://github.com/emqx/emqx master
-dep_cuttlefish = git https://github.com/emqx/cuttlefish v2.0.11
+
+dep_emqx = git-emqx https://github.com/emqx/emqx $(BRANCH)
+dep_cuttlefish = git-emqx https://github.com/emqx/cuttlefish v2.2.1
 
 ERLC_OPTS += +debug_info
-ERLC_OPTS += +'{parse_transform, lager_transform}'
 
 NO_AUTOPATCH = cuttlefish
 
 COVER = true
+
+$(shell [ -f erlang.mk ] || curl -s -o erlang.mk https://raw.githubusercontent.com/emqx/erlmk/master/erlang.mk)
 
 include erlang.mk
 

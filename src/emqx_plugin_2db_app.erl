@@ -2,10 +2,11 @@
 
 -behaviour(application).
 
-%% Application callbacks
--export([start/2, stop/1]).
+-emqx_plugin(?MODULE).
 
--define(APP, emqx_plugin_2db).
+-export([ start/2
+        , stop/1
+        ]).
 
 start(_StartType, _StartArgs) ->
     {ok, Sup} = emqx_plugin_2db_sup:start_link(),
@@ -20,3 +21,4 @@ start(_StartType, _StartArgs) ->
 
 stop(_State) ->
     emqx_plugin_2db:unload().
+
